@@ -91,13 +91,17 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
     const char *selected_format = format;
     const char *output_color = NULL;
 
-    int unread_fields = 6;
+    int unread_fields = 9;
     unsigned long ram_total;
     unsigned long ram_free;
     unsigned long ram_available;
     unsigned long ram_buffers;
     unsigned long ram_cached;
     unsigned long ram_shared;
+
+    unsigned long swap_cached;
+    unsigned long swap_total;
+    unsigned long swap_free;
 
     FILE *file = fopen("/proc/meminfo", "r");
     if (!file) {
@@ -116,6 +120,12 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
             ram_cached = strtoul(line + strlen("Cached:"), NULL, 10);
         } else if (BEGINS_WITH(line, "Shmem:")) {
             ram_shared = strtoul(line + strlen("Shmem:"), NULL, 10);
+        } else if (BEGINS_WITH(line, "SwapCached:")){
+            swap_cached = strtoul(line + strlen("SwapCached:"),NULL,10);
+        } else if (BEGINS_WITH(line, "SwapTotal:")){
+            swap_total = strtoul(line + strlen("SwapTotal:"),NULL,10);
+        } else if (BEGINS_WITH(line, "SwapFree:")){
+            swap_free = strtoul(line + strlen("SwapFree:"),NULL,10);
         } else {
             continue;
         }
@@ -137,11 +147,18 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
     ram_cached *= 1024UL;
     ram_shared *= 1024UL;
 
+    swap_cached *= 1024UL;
+    swap_total *= 1024UL;
+    swap_free *= 1024UL;
+
     unsigned long ram_used;
+    unsigned long swap_used;
     if (BEGINS_WITH(memory_used_method, "memavailable")) {
         ram_used = ram_total - ram_available;
+        swap_used = swap_total - swap_free;
     } else if (BEGINS_WITH(memory_used_method, "classical")) {
         ram_used = ram_total - ram_free - ram_buffers - ram_cached;
+        swap_used = swap_total - swap_free - swap_cached;
     } else {
         die("Unexpected value: memory_used_method = %s", memory_used_method);
     }
@@ -177,6 +194,12 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
     char string_percentage_used[STRING_SIZE];
     char string_percentage_shared[STRING_SIZE];
 
+    char string_swap_total[STRING_SIZE];
+    char string_swap_used[STRING_SIZE];
+    char string_swap_free[STRING_SIZE];
+    char string_swap_percentage_free[STRING_SIZE];
+    char string_swap_percentage_used[STRING_SIZE];
+
     print_bytes_human(string_ram_total, ram_total, unit, decimals);
     print_bytes_human(string_ram_used, ram_used, unit, decimals);
     print_bytes_human(string_ram_free, ram_free, unit, decimals);
@@ -187,6 +210,12 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
     print_percentage(string_percentage_used, 100.0 * ram_used / ram_total);
     print_percentage(string_percentage_shared, 100.0 * ram_shared / ram_total);
 
+    print_bytes_human(string_swap_total, swap_total, unit, decimals);
+    print_bytes_human(string_swap_used, swap_used, unit, decimals);
+    print_bytes_human(string_swap_free, swap_free, unit, decimals);
+    print_percentage(string_swap_percentage_free, 100.0 * swap_free / swap_total);
+    print_percentage(string_swap_percentage_used, 100.0 * swap_used / swap_total);
+
     placeholder_t placeholders[] = {
         {.name = "%total", .value = string_ram_total},
         {.name = "%used", .value = string_ram_used},
@@ -196,7 +225,12 @@ void print_memory(yajl_gen json_gen, char *buffer, const char *format, const cha
         {.name = "%percentage_free", .value = string_percentage_free},
         {.name = "%percentage_available", .value = string_percentage_available},
         {.name = "%percentage_used", .value = string_percentage_used},
-        {.name = "%percentage_shared", .value = string_percentage_shared}};
+        {.name = "%percentage_shared", .value = string_percentage_shared},
+        {.name = "%swap_total", .value = string_swap_total},
+        {.name = "%swap_used", .value = string_swap_used},
+        {.name = "%swap_free", .value = string_swap_free},
+        {.name = "%percentage_swap_free", .value = string_swap_percentage_free},
+        {.name = "%percentage_swap_used", .value = string_swap_percentage_used}};
 
     const size_t num = sizeof(placeholders) / sizeof(placeholder_t);
     buffer = format_placeholders(selected_format, &placeholders[0], num);

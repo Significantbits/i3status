@@ -1,5 +1,26 @@
 # i3status
 
+## Fork Description
+This is an extremely simple fork of i3status that adds the ability to display SWAP space information. In the memory section of the i3status config file, you now have the following options:
+
+```
+%swap_total - displays total SWAP space
+%swap_used - displays the total SWAP space used
+%swap_free - displays the amount of free SWAP space
+%percentage_swap_free - displays the percentage of free SWAP space
+%percentage_swap_used - displays the percentage of swap space used
+```
+
+Example:
+
+```
+memory {
+        format = "RAM: %total|SWAP: %swap_used"
+        threshold_degraded = "1G"
+        format_degraded = "MEMORY < %available"
+}
+```
+
 ## Description
 
 i3status is a small program for generating a status bar for i3bar, dzen2, xmobar
